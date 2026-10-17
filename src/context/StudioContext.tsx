@@ -90,7 +90,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkConnection = useCallback(async () => {
+    saveSettings(settings);
     setConnection("checking");
+    setConnectionDetail("Contacting the ACE Music API…");
     const result = await testConnection(settings);
     setConnection(result.status);
     setConnectionDetail(result.detail);

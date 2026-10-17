@@ -60,13 +60,16 @@ export function SettingsPanel() {
       </div>
 
       <div className="inline-actions">
-        <button type="button" className="ghost-btn" onClick={() => void checkConnection()}>
+        <button type="button" className="ghost-btn" onClick={() => void checkConnection()} disabled={connection === "checking"}>
           {connection === "checking" ? "Testing…" : "Test connection"}
         </button>
-        <span className={`gen-status is-${connection === "connected" ? "ready" : connection === "error" ? "error" : "idle"}`}>
-          {connectionDetail}
-        </span>
       </div>
+      <p
+        className={`connection-detail is-${connection === "connected" ? "ready" : connection === "error" || connection === "unconfigured" ? "error" : "idle"}`}
+        role="status"
+      >
+        {connectionDetail}
+      </p>
 
       <label className="field">
         <span>Spline scene URL</span>

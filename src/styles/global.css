@@ -232,6 +232,21 @@ main { padding: 22px 28px 12px; }
 .gen-status { min-height: 1.4em; color: var(--text-muted); }
 .gen-status.is-error, .chest-error { color: var(--danger); }
 .gen-status.is-ready { color: var(--ok); }
+.connection-detail {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(5, 8, 16, 0.65);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  max-height: 7.5em;
+  overflow: auto;
+}
+.connection-detail.is-ready { color: var(--ok); border-color: rgba(93, 255, 181, 0.35); }
+.connection-detail.is-error { color: var(--danger); border-color: rgba(255, 93, 122, 0.35); }
 .lm-output pre {
   white-space: pre-wrap;
   background: #070b14;

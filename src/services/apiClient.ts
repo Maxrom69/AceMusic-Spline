@@ -36,6 +36,83 @@ function proxyUrl(path: string): string {
   return `/api/ace${clean}`;
 }
 
+function isHtmlBody(text: string, contentType?: string | null): boolean {
+  if (contentType?.toLowerCase().includes("text/html")) return true;
+  const head = text.trimStart().slice(0, 280).toLowerCase();
+  return (
+    head.startsWith("<!doctype") ||
+    head.startsWith("<html") ||
+    head.includes("<!--[if lt ie") ||
+    (head.includes("cloudflare") && head.includes("<html"))
+  );
+}
+
+function htmlTitle(text: string): string | undefined {
+  return text.match(/<title>([^<]+)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim();
+}
+
+function isLoopbackBase(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local");
+  } catch {
+    return false;
+  }
+}
+
+function gatewayMessage(status: number, text: string, contentType?: string | null): string | null {
+  if (!isHtmlBody(text, contentType)) return null;
+  const title = htmlTitle(text);
+  if (/attention required|cloudflare|just a moment/i.test(`${title || ""} ${text.slice(0, 400)}`)) {
+    return `The API gateway returned an HTML block page (HTTP ${status}${title ? `: ${title}` : ""}). This preview proxy cannot always reach api.acemusic.ai; the studio will retry from your browser.`;
+  }
+  return `The server returned a web page instead of API JSON (HTTP ${status}${title ? `: ${title}` : ""}). Check the API Base URL — it must be the API origin, not a website.`;
+}
+
+async function aceFetch(path: string, settings: AppSettings, init: RequestInit = {}): Promise<Response> {
+  const proxyHeadersInit = proxyHeaders(settings, init.headers);
+  proxyHeadersInit.set("Accept", "application/json, text/event-stream, */*");
+
+  let proxyResponse: Response | null = null;
+  let proxyFailure: string | null = null;
+  try {
+    proxyResponse = await fetch(proxyUrl(path), { ...init, headers: proxyHeadersInit });
+    const contentType = proxyResponse.headers.get("content-type");
+    if (contentType?.toLowerCase().includes("text/html") || (!proxyResponse.ok && proxyResponse.status >= 500)) {
+      const preview = await proxyResponse.clone().text();
+      const htmlError = gatewayMessage(proxyResponse.status, preview, contentType);
+      if (htmlError || preview.includes("fetch failed") || proxyResponse.status >= 500) {
+        proxyFailure = htmlError || parseHttpError(proxyResponse.status, preview);
+      }
+    }
+  } catch (error) {
+    proxyFailure = error instanceof Error ? error.message : "Proxy request failed.";
+  }
+
+  const canDirect = Boolean(proxyFailure) && !isLoopbackBase(settings.apiBaseUrl || DEFAULT_API_BASE);
+  if (!canDirect) {
+    if (proxyResponse) return proxyResponse;
+    throw new Error(proxyFailure || "API request failed.");
+  }
+
+  const base = normalizeBase(settings.apiBaseUrl || DEFAULT_API_BASE);
+  const directUrl = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  const directHeaders = new Headers(init.headers);
+  directHeaders.delete("X-Ace-Base-Url");
+  directHeaders.set("Accept", "application/json, text/event-stream, */*");
+  if (settings.apiKey.trim()) {
+    directHeaders.set("Authorization", `Bearer ${settings.apiKey.trim()}`);
+  }
+  try {
+    return await fetch(directUrl, { ...init, headers: directHeaders, mode: "cors", credentials: "omit" });
+  } catch {
+    throw new Error(
+      proxyFailure ||
+        `Could not reach ${base}. If this is the cloud API, confirm the Base URL and key. Local ACE-Step URLs must be proxied.`,
+    );
+  }
+}
+
 function titleFromPrompt(prompt: string): string {
   const compact = prompt.replace(/\s+/g, " ").trim();
   if (!compact) return "Untitled generation";
@@ -213,15 +290,15 @@ async function generateCompletion(
   }
   if (request.seed.trim()) body.seed = request.seed.trim();
 
-  const response = await fetch(proxyUrl("/v1/chat/completions"), {
+  const response = await aceFetch("/v1/chat/completions", settings, {
     method: "POST",
-    headers: proxyHeaders(settings, { "Content-Type": "application/json" }),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(parseHttpError(response.status, text));
+    throw new Error(parseHttpError(response.status, text, response.headers.get("content-type")));
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -250,7 +327,9 @@ async function generateCompletion(
   return { content, ...dataUrlToBlob(audioUrl) };
 }
 
-function parseHttpError(status: number, text: string): string {
+function parseHttpError(status: number, text: string, contentType?: string | null): string {
+  const htmlError = gatewayMessage(status, text, contentType);
+  if (htmlError) return htmlError;
   try {
     const json = JSON.parse(text) as { error?: string | { message?: string }; message?: string };
     const message =
@@ -262,7 +341,9 @@ function parseHttpError(status: number, text: string): string {
   if (status === 401 || status === 403) return "Authentication failed. Check the API key in Settings.";
   if (status === 404) return "Endpoint not found. The API Base URL or mode may be wrong.";
   if (status === 504) return "The upstream API timed out (HTTP 504). Try a shorter duration or disable thinking.";
-  return text.slice(0, 280) || `Request failed (${status}).`;
+  const compact = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!compact || compact.startsWith("<")) return `Request failed (HTTP ${status}).`;
+  return compact.slice(0, 220) || `Request failed (${status}).`;
 }
 
 function unwrapNative<T>(json: Record<string, unknown>): T {
@@ -304,20 +385,21 @@ async function generateNative(
     const form = new FormData();
     Object.entries(payload).forEach(([key, value]) => form.append(key, String(value)));
     form.append(request.taskType === "cover" ? "src_audio" : "reference_audio", request.referenceAudio);
-    response = await fetch(proxyUrl("/release_task"), {
+    response = await aceFetch("/release_task", settings, {
       method: "POST",
-      headers: proxyHeaders(settings),
       body: form,
     });
   } else {
-    response = await fetch(proxyUrl("/release_task"), {
+    response = await aceFetch("/release_task", settings, {
       method: "POST",
-      headers: proxyHeaders(settings, { "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   }
 
-  if (!response.ok) throw new Error(parseHttpError(response.status, await response.text()));
+  if (!response.ok) {
+    throw new Error(parseHttpError(response.status, await response.text(), response.headers.get("content-type")));
+  }
   const created = unwrapNative<{ task_id?: string; status?: string }>(
     (await response.json()) as Record<string, unknown>,
   );
@@ -328,12 +410,14 @@ async function generateNative(
   const started = Date.now();
   while (Date.now() - started < 8 * 60 * 1000) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    const poll = await fetch(proxyUrl("/query_result"), {
+    const poll = await aceFetch("/query_result", settings, {
       method: "POST",
-      headers: proxyHeaders(settings, { "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task_id_list: [taskId] }),
     });
-    if (!poll.ok) throw new Error(parseHttpError(poll.status, await poll.text()));
+    if (!poll.ok) {
+      throw new Error(parseHttpError(poll.status, await poll.text(), poll.headers.get("content-type")));
+    }
     const data = unwrapNative<Array<{ status: number | string; result?: string; error?: string }>>(
       (await poll.json()) as Record<string, unknown>,
     );
@@ -355,15 +439,15 @@ async function generateNative(
       const first = parsed[0];
       if (!first?.file) throw new Error("Native job succeeded but no audio path was returned.");
       onStatus({ status: "decoding", detail: "Downloading generated audio…" });
-      const filePath = first.file.startsWith("http")
-        ? first.file
-        : proxyUrl(first.file.startsWith("/") ? first.file : `/v1/audio?path=${encodeURIComponent(first.file)}`);
-      const audioRes = first.file.startsWith("http")
-        ? await fetch(proxyUrl(`/v1/audio?path=${encodeURIComponent(first.file)}`), {
-            headers: proxyHeaders(settings),
-          })
-        : await fetch(filePath, { headers: proxyHeaders(settings) });
-      if (!audioRes.ok) throw new Error(parseHttpError(audioRes.status, await audioRes.text()));
+      const audioPath = first.file.startsWith("http")
+        ? `/v1/audio?path=${encodeURIComponent(first.file)}`
+        : first.file.startsWith("/")
+          ? first.file
+          : `/v1/audio?path=${encodeURIComponent(first.file)}`;
+      const audioRes = await aceFetch(audioPath, settings);
+      if (!audioRes.ok) {
+        throw new Error(parseHttpError(audioRes.status, await audioRes.text(), audioRes.headers.get("content-type")));
+      }
       const blob = await audioRes.blob();
       const mime = blob.type || mimeForFormat(request.format);
       const content = [first.prompt, first.lyrics].filter(Boolean).join("\n");
@@ -448,6 +532,30 @@ export async function generateMusic(
   return { track, objectUrl, content: generated.content };
 }
 
+function extractModels(text: string): string[] | undefined {
+  try {
+    const json = JSON.parse(text) as Record<string, unknown>;
+    const data = json.data;
+    const list = Array.isArray(data)
+      ? data
+      : data && typeof data === "object" && Array.isArray((data as { models?: unknown }).models)
+        ? (data as { models: unknown[] }).models
+        : Array.isArray(json.data)
+          ? json.data
+          : null;
+    if (!Array.isArray(list)) return undefined;
+    return list
+      .map((item) => {
+        if (!item || typeof item !== "object") return "";
+        const rec = item as { id?: unknown; name?: unknown };
+        return String(rec.id || rec.name || "");
+      })
+      .filter(Boolean);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function testConnection(
   settings: AppSettings,
 ): Promise<{ status: ConnectionStatus; detail: string; models?: string[] }> {
@@ -455,44 +563,40 @@ export async function testConnection(
     return { status: "unconfigured", detail: "API Base URL is empty." };
   }
   const mode = resolveMode(settings);
-  const attempts = mode === "native" ? ["/health", "/v1/models"] : ["/health", "/v1/models"];
+  const attempts = mode === "native" ? ["/health", "/v1/models"] : ["/v1/models", "/health"];
   let lastError = "No response.";
   for (const path of attempts) {
     try {
-      const response = await fetch(proxyUrl(path), {
-        headers: proxyHeaders(settings),
-      });
+      const response = await aceFetch(path, settings, { method: "GET" });
+      const contentType = response.headers.get("content-type");
       const text = await response.text();
-      if (!response.ok) {
-        lastError = parseHttpError(response.status, text);
+      if (isHtmlBody(text, contentType)) {
+        lastError = parseHttpError(response.status, text, contentType);
         continue;
       }
-      let models: string[] | undefined;
-      try {
-        const json = JSON.parse(text) as Record<string, unknown>;
-        const data = json.data;
-        const list = Array.isArray(data)
-          ? data
-          : data && typeof data === "object" && Array.isArray((data as { models?: unknown }).models)
-            ? (data as { models: unknown[] }).models
-            : Array.isArray(json.data)
-              ? json.data
-              : null;
-        if (Array.isArray(list)) {
-          models = list
-            .map((item) => {
-              if (!item || typeof item !== "object") return "";
-              const rec = item as { id?: unknown; name?: unknown };
-              return String(rec.id || rec.name || "");
-            })
-            .filter(Boolean);
-        }
-      } catch {
-        /* health may be plain */
+      if (response.status === 401 || response.status === 403) {
+        return {
+          status: settings.apiKey.trim() ? "error" : "unconfigured",
+          detail: settings.apiKey.trim()
+            ? `Reached ${path}, but the API key was rejected.`
+            : `Reached ${path}. Paste an API key from acemusic.ai/playground/api-key, then test again.`,
+        };
+      }
+      if (!response.ok) {
+        lastError = parseHttpError(response.status, text, contentType);
+        continue;
+      }
+      const models = extractModels(text);
+      const okJson = text.trim().startsWith("{") || text.trim().startsWith("[");
+      if (!okJson && !/ok|healthy|status/i.test(text)) {
+        lastError = `Unexpected response from ${path}.`;
+        continue;
       }
       return {
         status: "connected",
-        detail: `Reached ${path} (${mode} mode).`,
+        detail: models?.length
+          ? `Connected via ${path} (${mode}). Models: ${models.slice(0, 4).join(", ")}`
+          : `Connected via ${path} (${mode} mode).`,
         models,
       };
     } catch (error) {

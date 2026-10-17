@@ -54,7 +54,11 @@ Reference files are sent as `multipart/form-data` (`reference_audio` or `src_aud
 
 ### Connection test
 
-`GET /health` then `GET /v1/models`. Failures are shown verbatim enough to debug (no fake “connected” state).
+Completion mode tries `GET /v1/models` first, then `GET /health`. Native mode tries `/health` then `/v1/models`.
+
+HTML gateway pages (Cloudflare “Attention Required”, IE-conditional error documents, etc.) are **not** shown in the UI. They are collapsed to a short explanation. HTTP 401/403 from a JSON API means the origin was reached and the key is missing or rejected.
+
+If the same-origin Node proxy cannot reach the cloud host (common on firewalled preview servers), the client retries the same path from the **browser** against the configured Base URL. Local `127.0.0.1` / `localhost` APIs stay on the proxy so they are not confused with the user’s own machine.
 
 ## What this app does not pretend to do
 
