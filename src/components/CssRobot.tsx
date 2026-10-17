@@ -25,9 +25,9 @@ export function CssRobot({
       const pointer = aim.current;
       const idle = !pointer.active && !reducedMotion;
       const targetHeadY = reducedMotion ? 0 : idle ? Math.sin(t * 0.6) * 10 : pointer.x * 16;
-      const targetHeadX = reducedMotion ? 0 : idle ? Math.sin(t * 0.4) * 4 : -pointer.y * 10;
+      const targetHeadX = reducedMotion ? 0 : idle ? Math.sin(t * 0.4) * 4 : pointer.y * 10;
       const targetEyeY = reducedMotion ? 0 : idle ? Math.sin(t * 0.6 + 0.2) * 7 : pointer.x * 9;
-      const targetEyeX = reducedMotion ? 0 : idle ? Math.sin(t * 0.4 + 0.2) * 4 : -pointer.y * 6;
+      const targetEyeX = reducedMotion ? 0 : idle ? Math.sin(t * 0.4 + 0.2) * 4 : pointer.y * 6;
       hy += (targetHeadY - hy) * 0.08;
       hx += (targetHeadX - hx) * 0.08;
       ey += (targetEyeY - ey) * 0.16;

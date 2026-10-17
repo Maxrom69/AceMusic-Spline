@@ -14,10 +14,17 @@ export function AppHeader() {
       </div>
       <nav className="main-nav" aria-label="Studio">
         <NavLink to="/" end>
-          Music Studio
+          <span className="nav-full">Music Studio</span>
+          <span className="nav-short">Studio</span>
         </NavLink>
-        <NavLink to="/tracks">My Tracks</NavLink>
-        <NavLink to="/tools">Audio Tools</NavLink>
+        <NavLink to="/tracks">
+          <span className="nav-full">My Tracks</span>
+          <span className="nav-short">Tracks</span>
+        </NavLink>
+        <NavLink to="/tools">
+          <span className="nav-full">Audio Tools</span>
+          <span className="nav-short">Tools</span>
+        </NavLink>
         <NavLink to="/settings">Settings</NavLink>
       </nav>
       <div className={`api-chip is-${connection}`} title={connectionDetail}>

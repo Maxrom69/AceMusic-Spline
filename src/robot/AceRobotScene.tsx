@@ -76,10 +76,14 @@ export function AceRobotScene({ reducedMotion, playback, energy }: RobotProps) {
     const t = clock.getElapsedTime();
     const pointer = aim.current;
     const idle = !pointer.active && !reducedMotion;
-    const targetYaw = reducedMotion ? 0 : idle ? Math.sin(t * 0.55) * 0.18 : THREE.MathUtils.clamp(pointer.x, -1, 1) * 0.42;
-    const targetPitch = reducedMotion ? 0 : idle ? Math.sin(t * 0.4) * 0.06 : THREE.MathUtils.clamp(-pointer.y, -1, 1) * 0.22;
-    const eyeYaw = reducedMotion ? 0 : idle ? Math.sin(t * 0.55 + 0.25) * 0.22 : THREE.MathUtils.clamp(pointer.x, -1, 1) * 0.32;
-    const eyePitch = reducedMotion ? 0 : idle ? Math.sin(t * 0.4 + 0.2) * 0.08 : THREE.MathUtils.clamp(-pointer.y, -1, 1) * 0.2;
+    // Screen space: pointer.y is negative at the top and positive at the bottom.
+    // Three.js +rotation.x nods the face toward the camera (look down).
+    const lookX = THREE.MathUtils.clamp(pointer.x, -1, 1);
+    const lookY = THREE.MathUtils.clamp(pointer.y, -1, 1);
+    const targetYaw = reducedMotion ? 0 : idle ? Math.sin(t * 0.55) * 0.14 : lookX * 0.36;
+    const targetPitch = reducedMotion ? 0 : idle ? Math.sin(t * 0.4) * 0.05 : lookY * 0.2;
+    const eyeYaw = reducedMotion ? 0 : idle ? Math.sin(t * 0.55 + 0.25) * 0.18 : lookX * 0.28;
+    const eyePitch = reducedMotion ? 0 : idle ? Math.sin(t * 0.4 + 0.2) * 0.07 : -lookY * 0.18;
 
     headEuler.current.y = damp(headEuler.current.y, targetYaw, 4.2, dt);
     headEuler.current.x = damp(headEuler.current.x, targetPitch, 4.2, dt);
@@ -114,7 +118,7 @@ export function AceRobotScene({ reducedMotion, playback, energy }: RobotProps) {
   });
 
   return (
-    <group position={[0, -0.35, 0]}>
+    <group position={[0, -0.55, 0]} scale={0.62}>
       <mesh position={[0, -1.55, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[1.8, 48]} />
         <meshStandardMaterial color="#05070f" emissive="#10203a" emissiveIntensity={0.35} roughness={1} />

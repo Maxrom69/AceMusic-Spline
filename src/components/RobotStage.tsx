@@ -51,10 +51,10 @@ export function RobotStage() {
         ) : (
           <WebGlBoundary onError={() => setWebglFailed(true)}>
             <Canvas
-              camera={{ position: [0, 0.35, 4.6], fov: 32 }}
-              dpr={[1, 1.75]}
+              camera={{ position: [0, 0.05, 5.4], fov: 36 }}
+              dpr={[1, 1.5]}
               gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", width: "100%", height: "100%" }}
               frameloop={reducedMotion ? "demand" : "always"}
             >
               <color attach="background" args={["#05070d"]} />
