@@ -49,13 +49,18 @@ export function RobotStage() {
     <section className="robot-stage" aria-label="Robot stage">
       <div className="robot-canvas-wrap">
         {useSpline ? (
-          <Suspense fallback={<div className="robot-loading">Loading Spline scene…</div>}>
-            <LazySpline url={splineUrl} onFail={onSplineFail} onReady={() => setSplineReady(true)} />
-          </Suspense>
+          <div className="robot-canvas-layer">
+            <Suspense fallback={<div className="robot-loading">Loading Spline scene…</div>}>
+              <LazySpline url={splineUrl} onFail={onSplineFail} onReady={() => setSplineReady(true)} />
+            </Suspense>
+          </div>
         ) : webglFailed ? (
-          <CssRobot reducedMotion={reducedMotion} playback={player.state} />
+          <div className="robot-canvas-layer">
+            <CssRobot reducedMotion={reducedMotion} playback={player.state} />
+          </div>
         ) : (
           <WebGlBoundary onError={() => setWebglFailed(true)}>
+            <div className="robot-canvas-layer">
             <Canvas
               camera={{ position: [0, 0.05, 5.4], fov: 36 }}
               dpr={[1, 1.5]}
@@ -79,6 +84,7 @@ export function RobotStage() {
                 </EffectComposer>
               )}
             </Canvas>
+            </div>
           </WebGlBoundary>
         )}
         {!useSpline && !webglFailed && <div className="robot-loading-hint">Ace is listening</div>}
