@@ -6,7 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { DEFAULT_GENERATE } from "../config/defaults";
 import { generateMusic, testConnection, validateGenerate } from "../services/apiClient";
@@ -24,7 +26,7 @@ import type {
 
 interface StudioContextValue {
   settings: AppSettings;
-  setSettings: (next: AppSettings) => void;
+  setSettings: Dispatch<SetStateAction<AppSettings>>;
   persistSettings: () => void;
   restoreSettings: () => void;
   connection: ConnectionStatus;
@@ -78,6 +80,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const objectUrls = useRef<Map<string, string>>(new Map());
 
   useEffect(() => audioEngine.subscribe(() => setPlayerTick((value) => value + 1)), []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+  }, [settings.theme]);
 
   const persistSettings = useCallback(() => {
     saveSettings(settings);

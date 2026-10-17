@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useStudio } from "../context/StudioContext";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 export function AppHeader() {
   const { settings, connection, connectionDetail } = useStudio();
@@ -27,6 +28,7 @@ export function AppHeader() {
         </NavLink>
         <NavLink to="/settings">Settings</NavLink>
       </nav>
+      <ThemeSwitcher compact />
       <div className={`api-chip is-${connection}`} title={connectionDetail}>
         <i />
         <span>

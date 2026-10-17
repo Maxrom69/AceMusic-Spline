@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, STORAGE_SETTINGS } from "../config/defaults";
+import { isThemeId } from "../config/themes";
 import type { AppSettings } from "../types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -30,6 +31,10 @@ export function loadSettings(): AppSettings {
       model: typeof parsed.model === "string" ? parsed.model : DEFAULT_SETTINGS.model,
       splineSceneUrl: typeof parsed.splineSceneUrl === "string" ? parsed.splineSceneUrl : DEFAULT_SETTINGS.splineSceneUrl,
       reducedMotion: Boolean(parsed.reducedMotion),
+      theme: isThemeId(parsed.theme) ? parsed.theme : DEFAULT_SETTINGS.theme,
+      splitRatio: typeof parsed.splitRatio === "number" ? parsed.splitRatio : DEFAULT_SETTINGS.splitRatio,
+      splitRatioMobile:
+        typeof parsed.splitRatioMobile === "number" ? parsed.splitRatioMobile : DEFAULT_SETTINGS.splitRatioMobile,
     };
   } catch {
     return { ...DEFAULT_SETTINGS, branding: { ...DEFAULT_SETTINGS.branding } };

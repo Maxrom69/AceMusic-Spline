@@ -18,6 +18,8 @@ export type PlaybackState = "idle" | "loading" | "playing" | "paused" | "ended" 
 
 export type AudioFormat = "mp3" | "wav" | "flac" | "opus" | "aac";
 
+export type ThemeId = "ion" | "violet" | "ember" | "aurora" | "ivory";
+
 export interface Branding {
   appName: string;
   tagline: string;
@@ -31,6 +33,9 @@ export interface AppSettings {
   model: string;
   splineSceneUrl: string;
   reducedMotion: boolean;
+  theme: ThemeId;
+  splitRatio: number;
+  splitRatioMobile: number;
   branding: Branding;
 }
 

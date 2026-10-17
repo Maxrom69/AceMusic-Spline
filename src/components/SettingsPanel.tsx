@@ -3,6 +3,7 @@ import { ACE_DOCS_COMPLETION, ACE_DOCS_NATIVE, API_KEY_HELP_URL, DEFAULT_API_BAS
 import { isValidSplineSceneUrl, splineBlockerSummary } from "../config/spline";
 import { maskKey } from "../services/settings";
 import { useStudio } from "../context/StudioContext";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 export function SettingsPanel() {
   const { settings, setSettings, persistSettings, restoreSettings, checkConnection, connection, connectionDetail } =
@@ -86,6 +87,12 @@ export function SettingsPanel() {
             : splineBlockerSummary()}
         </small>
       </label>
+
+      <div className="field">
+        <span>Theme</span>
+        <ThemeSwitcher />
+        <small>Applies immediately and is saved in this browser.</small>
+      </div>
 
       <label className="field">
         <span>App name</span>

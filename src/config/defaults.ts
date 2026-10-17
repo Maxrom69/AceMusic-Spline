@@ -28,6 +28,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   model: "acemusic/acestep-v15-turbo",
   splineSceneUrl: import.meta.env.VITE_SPLINE_SCENE_URL?.trim() || "",
   reducedMotion: false,
+  theme: "ion",
+  splitRatio: 54,
+  splitRatioMobile: 36,
   branding: {
     appName: "AceMusic AI",
     tagline: "Interactive Music Studio",

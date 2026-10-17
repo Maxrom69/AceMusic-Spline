@@ -11,6 +11,12 @@
       content="AceMusic AI — standalone interactive music studio with a cursor-tracking robot and a real WAV/MP3 player."
     />
     <title>AceMusic AI — Music Studio</title>
+    <script>
+      try {
+        var saved = JSON.parse(localStorage.getItem("acemusic.spline.settings.v1") || "{}");
+        if (saved.theme) document.documentElement.dataset.theme = saved.theme;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

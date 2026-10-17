@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useCallback, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
@@ -34,6 +34,12 @@ export function RobotStage() {
   const [splineReady, setSplineReady] = useState(false);
   const splineUrl = settings.splineSceneUrl.trim();
   const useSpline = isValidSplineSceneUrl(splineUrl) && !splineFailed;
+  const [voidColor, setVoidColor] = useState("#05070d");
+
+  useEffect(() => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue("--bg-void").trim();
+    if (value) setVoidColor(value);
+  }, [settings.theme]);
 
   const onSplineFail = useCallback((reason: string) => {
     setSplineFailed(reason);
@@ -57,7 +63,7 @@ export function RobotStage() {
               style={{ pointerEvents: "none", width: "100%", height: "100%" }}
               frameloop={reducedMotion ? "demand" : "always"}
             >
-              <color attach="background" args={["#05070d"]} />
+              <color attach="background" args={[voidColor]} />
               <ambientLight intensity={0.45} />
               <hemisphereLight args={["#9fd9ff", "#120818", 0.55]} />
               <spotLight position={[4, 6, 6]} intensity={22} angle={0.38} color="#7cf6ff" />

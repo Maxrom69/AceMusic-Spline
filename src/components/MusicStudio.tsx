@@ -3,6 +3,7 @@ import { GENRE_CHIPS, KEYS, LANGUAGES, MODELS, TIME_SIGNATURES } from "../config
 import { isSupportedAudioFile } from "../services/apiClient";
 import { useStudio } from "../context/StudioContext";
 import { RobotStage } from "./RobotStage";
+import { SplitStudio } from "./SplitStudio";
 
 export function MusicStudio() {
   const { form, setForm, generate, generating, generationStatus, generationDetail, lastContent, settings } = useStudio();
@@ -19,7 +20,8 @@ export function MusicStudio() {
   }, [form.referenceAudio]);
 
   return (
-    <div className="studio-layout">
+    <SplitStudio
+      left={
       <section className="workspace glass-panel">
         <div className="panel-heading">
           <p className="kicker">Creation workspace</p>
@@ -227,7 +229,8 @@ export function MusicStudio() {
           </details>
         )}
       </section>
-      <RobotStage />
-    </div>
+      }
+      right={<RobotStage />}
+    />
   );
 }

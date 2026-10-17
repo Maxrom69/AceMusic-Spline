@@ -6,14 +6,15 @@ import { MusicStudio } from "./components/MusicStudio";
 import { MyTracks } from "./components/MyTracks";
 import { RobotStage } from "./components/RobotStage";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { SplitStudio } from "./components/SplitStudio";
 import { COMMUNITY_ROBOT } from "./config/defaults";
 
 function SideLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="studio-layout">
-      <div>{children}</div>
-      <RobotStage />
-    </div>
+    <SplitStudio
+      left={children}
+      right={<RobotStage />}
+    />
   );
 }
 
